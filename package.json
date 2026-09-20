@@ -1,0 +1,39 @@
+{
+  "name": "spine-canvas-rebuild",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal rebuild of the discontinued Spine AI Canvas/Swarm product on Next.js 14, Supabase, and Vercel.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@supabase/supabase-js": "^2.45.0",
+    "@xyflow/react": "^12.0.0",
+    "zustand": "^4.5.4",
+    "ai": "^3.3.0",
+    "@ai-sdk/openai": "^0.0.42",
+    "@ai-sdk/anthropic": "^0.0.39",
+    "@ai-sdk/google": "^0.0.38",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/node": "^20.14.15",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "tailwindcss": "^3.4.9",
+    "postcss": "^8.4.41",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.5"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
