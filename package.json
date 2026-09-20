@@ -10,13 +10,13 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^14.2.5",
+    "next": "^16.3.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "@supabase/supabase-js": "^2.45.0",
     "@xyflow/react": "^12.0.0",
     "zustand": "^4.5.4",
-    "ai": "^3.3.0",
+    "ai": "^7.0.107",
     "@ai-sdk/openai": "^0.0.42",
     "@ai-sdk/anthropic": "^0.0.39",
     "@ai-sdk/google": "^0.0.38",
