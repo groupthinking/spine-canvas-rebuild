@@ -21,3 +21,35 @@ This document specifies a complete, private rebuild of the Spine Canvas / Swarm 
 * Horizontal worker fleets. Long-running block generation uses Vercel serverless/background functions with a Postgres-backed queue rather than a dedicated worker cluster.
 
 Critical grounding caveat: every row in the proposed Postgres schema research table is flagged confidence = Inferred, derived from the public canvases-and-runs API concepts documentation rather than from the production DDL [1] [5]. Treat the schema in Section 3 as a high-fidelity working model, and validate column names against live API payloads during Phase 1 before writing migrations that are expensive to reverse.
+
+---
+
+## 2. System Architecture
+
+### 2.1 Layer Decomposition
+The system is a single Next.js 14 App Router application deployed to Vercel, with Supabase providing authentication, Postgres, object storage, and realtime change streams [3]. All server-side work is expressed as route handlers under app/api, which keeps the model-call boundary explicit and testable — the same pattern used by the tlbrowse reference implementation, where all model-call logic lives in app/api/html/route.ts [3].
+
+**TABLE 1 — ARCHITECTURAL LAYERS AND RESPONSIBILITIES**
+
+| Layer | Implementation | Responsibilities |
+| :--- | :--- | :--- |
+| Canvas client | React 18 + @xyflow/react + Zustand + Tailwind | Infinite canvas rendering, node/edge editing, optimistic status badges, drag-to-connect, frame grouping |
+| Realtime sync | Supabase Realtime (postgres_changes on blocks, runs, tasks) | Push block status transitions and content updates to the canvas; trigger downstream invalidation UI [3] |
+| API surface | Next.js App Router route handlers (app/api/**) | Run creation, block CRUD, artifact signing, webhook dispatch, MCP transport endpoint |
+| Orchestration | Swarm planner + task dispatcher (Node runtime) | Decompose prompts into tasks, enforce allowed_block_types, topologically schedule work |
+| Model router | Vercel AI SDK provider registry | Route each block type + agent tier to OpenAI / Anthropic / Google / OpenRouter with fallback |
+| Generation workers | Serverless + background functions | Per-block-type generators (docx, xlsx, pptx, image, html, research) writing to Supabase Storage |
+| Data | Supabase Postgres (12 tables) + Storage buckets | Canonical graph state, run history, artifacts, OAuth tokens, webhook delivery log [1] [5] |
+| Integrations | MCP server + OAuth connectors | GitHub, Google Workspace, web, and YouTube ingress/egress [3] |
+
+### 2.2 Run Lifecycle
+1. Intake. A run is created against a canvas with prompt, optional template, allowed_block_types, and agent_instructions; status is set to queued and estimated_duration_ms is written from a per-block-type cost model [1] [5].
+2. Planning. The Swarm planner writes one or more rows to tasks, each carrying tier, persona, agent_tier, goal, and an optional parent_task_id to form the task tree [1] [5].
+3. Materialisation. Each leaf task creates a blocks row with status = pending and a position, then links it to its context sources by inserting rows into edges [1] [5].
+4. Execution. The dispatcher walks the DAG in topological order, flipping each block to running, invoking the block-type generator, and persisting content / url plus any file rows or run_artifacts rows [1] [2] [5].
+5. Completion. Each block resolves to completed or failed; when all tasks resolve, the run records final_output, credits_consumed, and completed_at [1] [5].
+6. Propagation. Supabase Realtime broadcasts row changes to the canvas; webhook_deliveries rows are enqueued for every subscribed event on the user's webhook_endpoints [1] [3] [5].
+
+Every AI-generating block type shares a single four-state machine — pending, running, completed, failed — which makes status rendering, retry logic, and realtime badge updates uniform across the entire block library [2]. Static container blocks (Frames, Inputs, Folder) have no generation lifecycle and render in a static state [2].
+
+Design rule: the blocks table is the single source of truth for canvas state. The client never holds authoritative graph state; it holds a Zustand projection of Postgres rows kept fresh by Realtime. This is what makes cascading re-runs and multi-agent concurrent writes safe [3].
